@@ -6,26 +6,35 @@
 //
 
 import UIKit
+import CoreData
 
 class ToDoListTableViewController: UITableViewController {
     
-    var task: [String] = []
+    var tasks: [Task] = []
+    
+    override func viewWillAppear(_ animated: Bool) {
+        let context = getContext()
+        let fetchRequest: NSFetchRequest<Task> = Task.fetchRequest()
+        do {
+            tasks = try context.fetch(fetchRequest)
+        } catch let error as NSError {
+            print(error.localizedDescription)
+        }
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
     }
 
-    // MARK: - Table view data source
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        // #warning Incomplete implementation, return the number of rows
-        return task.count
+        return tasks.count
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "TasksCell", for: indexPath)
-        
-        cell.textLabel?.text = task[indexPath.row]
+        let task = tasks[indexPath.row]
+        cell.textLabel?.text = task.title
         return cell
     }
     
@@ -33,8 +42,8 @@ class ToDoListTableViewController: UITableViewController {
         let alertController = UIAlertController(title: "Save", message: "Add new task", preferredStyle: .alert)
         let saveAction = UIAlertAction(title: "Save", style: .default) { action in
             let textFd = alertController.textFields?.first
-            if let newTask = textFd?.text {
-                self.task.insert(newTask, at: 0)
+            if let newTaskTitle = textFd?.text {
+                self.saveTask(with: newTaskTitle)
                 self.tableView.reloadData()
             }
         }
@@ -45,15 +54,25 @@ class ToDoListTableViewController: UITableViewController {
         alertController.addAction(cancelAction)
         present(alertController, animated: true, completion: nil)
     }
-    
-    
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destination.
-        // Pass the selected object to the new view controller.
+    private func saveTask(with title: String) {
+        
+        let context = getContext()
+        
+        guard let entity = NSEntityDescription.entity(forEntityName: "Task", in: context) else { return }
+        let taskObject = Task(entity: entity, insertInto: context)
+        taskObject.title = title
+        
+        do {
+            try context.save()
+            tasks.insert(taskObject, at: 0)
+        } catch let error as NSError {
+            print(error.localizedDescription)
+        }
+        
     }
     
-
+    private func getContext() -> NSManagedObjectContext {
+        let appDelegate = UIApplication.shared.delegate as! AppDelegate
+        return appDelegate.persistentContainer.viewContext
+    }
 }
